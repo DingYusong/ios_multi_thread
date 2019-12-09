@@ -12,6 +12,7 @@
 @property (weak, nonatomic) IBOutlet UITableView *tableView;
 @property (nonatomic, copy) NSArray *dataSourceArray;
 
+@property (nonatomic, assign) NSInteger tickets;
 
 @end
 
@@ -22,27 +23,39 @@
     // Do any additional setup after loading the view.
     self.title = @"iOS 多线程";
     
-    self.dataSourceArray = @[@{
-                                 @"title":@"GCD",
-                                 @"list":@[
-                                         @"串行队列-创建串行队列",
-                                         @"并行队列-获取系统系统的并行队列",
-                                         @"并行队列-创建并行队列",
-                                         @"获取主线程【队列】",
-                                         @"同步添加任务到主队列",
-                                         @"异步添加任务到主队列",
-                                 ]
-                                 ,
-                                 @"title":@"NSOperation",
-                                 @"list":@[
-                                 ],
-                                 @"title":@"NSThread",
-                                 @"list":@[
-                                 ]
-                                 
-    }
+    self.dataSourceArray = @[
+        @{
+            @"title":@"GCD",
+            @"list":@[
+                    @"串行队列-创建串行队列",
+                    @"并行队列-获取系统系统的并行队列",
+                    @"并行队列-创建并行队列",
+                    @"获取主线程【队列】",
+                    @"同步添加任务到主队列",
+                    @"异步添加任务到主队列",
+            ]
+        }
+        ,
+        @{
+            @"title":@"NSOperation",
+            @"list":@[
+                    @"NSOperation",
+            ],
+        },
+        
+        @{
+            @"title":@"NSThread",
+            @"list":@[
+                    @"类方法创建-block",
+                    @"类方法创建-selector",
+                    @"实例方法创建",
+                    @"退出线程",
+                    @"线程同步-卖票问题",
+                    @"线程同步-卖票问题-加锁",
+                    @"线程同步-卖票问题-加锁优化",
+            ]
+        }
     ];
-    
     self.tableView.tableFooterView = [UIView new];
 }
 
@@ -134,9 +147,283 @@
 }
 
 
-- (void)test_0_4 {}
+- (void)test_0_4 {
+    NSLog(@"1");
+    dispatch_sync(dispatch_get_main_queue(), ^{
+        NSLog(@"2");
+    });
+    NSLog(@"3");
+    
+    /*
+     Thread 1: EXC_BAD_INSTRUCTION (code=EXC_I386_INVOP, subcode=0x0)
+     
+     同步添加任务到主队列会发生死锁。主队列是串行队列。同步执行。
+     */
+}
 
-- (void)test_0_5 {}
+- (void)test_0_5 {
+    /*
+    2019-12-09 19:23:43.230735+0800 ios_multi_thread[10454:681091] 1
+    2019-12-09 19:23:43.230969+0800 ios_multi_thread[10454:681091] 3
+    2019-12-09 19:23:43.231978+0800 ios_multi_thread[10454:681897] 2
+    */
+    NSLog(@"1");
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSLog(@"2");
+    });
+    NSLog(@"3");
+}
+
+
+- (void)test_2_0 {
+    /*
+    2019-12-09 19:23:43.230735+0800 ios_multi_thread[10454:681091] 1
+    2019-12-09 19:23:43.230969+0800 ios_multi_thread[10454:681091] 3
+    2019-12-09 19:23:43.231978+0800 ios_multi_thread[10454:681897] 2
+    */
+    NSLog(@"1");
+    [NSThread detachNewThreadWithBlock:^{
+        NSLog(@"2");
+    }];
+    NSLog(@"3");
+}
+
+- (void)test_2_1 {
+    /*
+     2019-12-09 19:23:43.230735+0800 ios_multi_thread[10454:681091] 1
+     2019-12-09 19:23:43.230969+0800 ios_multi_thread[10454:681091] 3
+     2019-12-09 19:23:43.231978+0800 ios_multi_thread[10454:681897] 2
+     */
+    NSLog(@"1");
+    [NSThread detachNewThreadSelector:@selector(log2) toTarget:self withObject:nil];
+    NSLog(@"3");
+}
+
+- (void)log2 {
+    NSLog(@"2");
+}
+
+- (void)test_2_2 {
+    [NSThread detachNewThreadWithBlock:^{
+        for (NSInteger i = 0; i<5; i++) {
+            NSLog(@"%td",i);
+            [NSThread sleepForTimeInterval:1];
+        }
+    }];
+    
+    NSThread *thread = [[NSThread alloc] initWithBlock:^{
+        for (int i = 97; i<102; i++) {
+            NSLog(@"%c",i);
+            [NSThread sleepForTimeInterval:1];
+        }
+    }];
+    
+    [thread start];
+ 
+    /*
+     完全异步的两个线程
+     
+     2019-12-09 19:27:48.932318+0800 ios_multi_thread[10563:689707] 0
+     2019-12-09 19:27:48.932367+0800 ios_multi_thread[10563:689708] a
+     2019-12-09 19:27:49.936671+0800 ios_multi_thread[10563:689707] 1
+     2019-12-09 19:27:49.936671+0800 ios_multi_thread[10563:689708] b
+     2019-12-09 19:27:50.939938+0800 ios_multi_thread[10563:689707] 2
+     2019-12-09 19:27:50.939927+0800 ios_multi_thread[10563:689708] c
+     2019-12-09 19:27:51.942780+0800 ios_multi_thread[10563:689708] d
+     2019-12-09 19:27:51.942780+0800 ios_multi_thread[10563:689707] 3
+     2019-12-09 19:27:52.947346+0800 ios_multi_thread[10563:689708] e
+     2019-12-09 19:27:52.947455+0800 ios_multi_thread[10563:689707] 4
+     */
+}
+
+- (void)test_2_3 {
+    [NSThread detachNewThreadWithBlock:^{
+        for (NSInteger i = 0; i<5; i++) {
+            NSLog(@"%td",i);
+            if (i == 2) {
+                [NSThread exit];
+            }
+            [NSThread sleepForTimeInterval:1];
+        }
+    }];
+    
+ 
+    /*
+     2019-12-09 19:38:05.178310+0800 ios_multi_thread[10674:703735] 0
+     2019-12-09 19:38:06.181506+0800 ios_multi_thread[10674:703735] 1
+     2019-12-09 19:38:07.186879+0800 ios_multi_thread[10674:703735] 2
+     */
+}
+
+
+- (void)test_2_4 {
+ 
+    //初始有20张票
+    self.tickets = 20;
+
+    //创建两个线程来充当两个售票员
+    [NSThread detachNewThreadWithBlock:^{
+        while (self.tickets > 0) {
+            [NSThread sleepForTimeInterval:1];
+            self.tickets --;
+            NSLog(@"还有%ld张票",(long)self.tickets);
+        }
+    }];
+    [NSThread detachNewThreadWithBlock:^{
+        while (self.tickets > 0) {
+            [NSThread sleepForTimeInterval:1];
+            self.tickets --;
+            NSLog(@"还有%ld张票",(long)self.tickets);
+        }
+    }];
+
+    
+    /*
+     一共花了10秒
+     
+     2019-12-09 19:44:18.338057+0800 ios_multi_thread[10758:713806] 还有19张票
+     2019-12-09 19:44:18.338057+0800 ios_multi_thread[10758:713807] 还有19张票
+     2019-12-09 19:44:19.341248+0800 ios_multi_thread[10758:713807] 还有17张票
+     2019-12-09 19:44:19.341272+0800 ios_multi_thread[10758:713806] 还有18张票
+     2019-12-09 19:44:20.346704+0800 ios_multi_thread[10758:713806] 还有15张票
+     2019-12-09 19:44:20.346704+0800 ios_multi_thread[10758:713807] 还有16张票
+     2019-12-09 19:44:21.348273+0800 ios_multi_thread[10758:713807] 还有13张票
+     2019-12-09 19:44:21.348273+0800 ios_multi_thread[10758:713806] 还有14张票
+     2019-12-09 19:44:22.353256+0800 ios_multi_thread[10758:713806] 还有12张票
+     2019-12-09 19:44:22.353256+0800 ios_multi_thread[10758:713807] 还有11张票
+     2019-12-09 19:44:23.357181+0800 ios_multi_thread[10758:713807] 还有9张票
+     2019-12-09 19:44:23.357181+0800 ios_multi_thread[10758:713806] 还有10张票
+     2019-12-09 19:44:24.358080+0800 ios_multi_thread[10758:713807] 还有8张票
+     2019-12-09 19:44:24.358080+0800 ios_multi_thread[10758:713806] 还有8张票
+     2019-12-09 19:44:25.362820+0800 ios_multi_thread[10758:713806] 还有7张票
+     2019-12-09 19:44:25.362820+0800 ios_multi_thread[10758:713807] 还有7张票
+     2019-12-09 19:44:26.364486+0800 ios_multi_thread[10758:713806] 还有6张票
+     2019-12-09 19:44:26.364484+0800 ios_multi_thread[10758:713807] 还有5张票
+     2019-12-09 19:44:27.368494+0800 ios_multi_thread[10758:713807] 还有3张票
+     2019-12-09 19:44:27.368494+0800 ios_multi_thread[10758:713806] 还有4张票
+     2019-12-09 19:44:28.369758+0800 ios_multi_thread[10758:713807] 还有2张票
+     2019-12-09 19:44:28.369758+0800 ios_multi_thread[10758:713806] 还有2张票
+     2019-12-09 19:44:29.371176+0800 ios_multi_thread[10758:713806] 还有1张票
+     2019-12-09 19:44:29.371176+0800 ios_multi_thread[10758:713807] 还有0张票
+     */
+}
+
+
+- (void)test_2_5 {
+ 
+    //初始有20张票
+    self.tickets = 20;
+
+    //创建两个线程来充当两个售票员
+    [NSThread detachNewThreadWithBlock:^{
+        @synchronized (self) {
+            while (self.tickets > 0) {
+                [NSThread sleepForTimeInterval:1];
+                self.tickets --;
+                NSLog(@"还有%ld张票",(long)self.tickets);
+            }
+        }
+    }];
+    [NSThread detachNewThreadWithBlock:^{
+        @synchronized (self) {
+            while (self.tickets > 0) {
+                [NSThread sleepForTimeInterval:1];
+                self.tickets --;
+                NSLog(@"还有%ld张票",(long)self.tickets);
+            }
+        }
+    }];
+
+    
+    /*
+     一共花了20秒
+     
+     2019-12-09 19:50:17.696865+0800 ios_multi_thread[10828:722053] 还有19张票
+     2019-12-09 19:50:18.698891+0800 ios_multi_thread[10828:722053] 还有18张票
+     2019-12-09 19:50:19.703745+0800 ios_multi_thread[10828:722053] 还有17张票
+     2019-12-09 19:50:20.706849+0800 ios_multi_thread[10828:722053] 还有16张票
+     2019-12-09 19:50:21.712073+0800 ios_multi_thread[10828:722053] 还有15张票
+     2019-12-09 19:50:22.716613+0800 ios_multi_thread[10828:722053] 还有14张票
+     2019-12-09 19:50:23.720630+0800 ios_multi_thread[10828:722053] 还有13张票
+     2019-12-09 19:50:24.726039+0800 ios_multi_thread[10828:722053] 还有12张票
+     2019-12-09 19:50:25.731539+0800 ios_multi_thread[10828:722053] 还有11张票
+     2019-12-09 19:50:26.732603+0800 ios_multi_thread[10828:722053] 还有10张票
+     2019-12-09 19:50:27.733891+0800 ios_multi_thread[10828:722053] 还有9张票
+     2019-12-09 19:50:28.739311+0800 ios_multi_thread[10828:722053] 还有8张票
+     2019-12-09 19:50:29.744752+0800 ios_multi_thread[10828:722053] 还有7张票
+     2019-12-09 19:50:30.749186+0800 ios_multi_thread[10828:722053] 还有6张票
+     2019-12-09 19:50:31.754605+0800 ios_multi_thread[10828:722053] 还有5张票
+     2019-12-09 19:50:32.760014+0800 ios_multi_thread[10828:722053] 还有4张票
+     2019-12-09 19:50:33.765474+0800 ios_multi_thread[10828:722053] 还有3张票
+     2019-12-09 19:50:34.765782+0800 ios_multi_thread[10828:722053] 还有2张票
+     2019-12-09 19:50:35.770490+0800 ios_multi_thread[10828:722053] 还有1张票
+     2019-12-09 19:50:36.773979+0800 ios_multi_thread[10828:722053] 还有0张票
+     */
+}
+
+- (void)test_2_6 {
+ 
+    //初始有20张票
+    self.tickets = 20;
+
+    //创建两个线程来充当两个售票员
+    [NSThread detachNewThreadWithBlock:^{
+        
+            
+            
+            
+            while (true) {
+                [NSThread sleepForTimeInterval:1];
+                @synchronized (self) {
+                
+            
+                self.tickets --;
+                    if (self.tickets <= 0) {
+                        break;
+                    }
+                    
+                NSLog(@"还有%ld张票",(long)self.tickets);
+            }
+        }
+    }];
+    [NSThread detachNewThreadWithBlock:^{
+        while (true) {
+            [NSThread sleepForTimeInterval:1];
+            @synchronized (self) {
+            self.tickets --;
+                if (self.tickets <= 0) {
+                    break;
+                }
+            NSLog(@"还有%ld张票",(long)self.tickets);
+        }
+        }
+    }];
+
+    /*    
+     一共花了10秒
+     
+     2019-12-09 19:56:09.869978+0800 ios_multi_thread[10926:731995] 还有19张票
+     2019-12-09 19:56:09.870196+0800 ios_multi_thread[10926:731996] 还有18张票
+     2019-12-09 19:56:10.871314+0800 ios_multi_thread[10926:731996] 还有17张票
+     2019-12-09 19:56:10.871530+0800 ios_multi_thread[10926:731995] 还有16张票
+     2019-12-09 19:56:11.876755+0800 ios_multi_thread[10926:731996] 还有15张票
+     2019-12-09 19:56:11.876973+0800 ios_multi_thread[10926:731995] 还有14张票
+     2019-12-09 19:56:12.881562+0800 ios_multi_thread[10926:731996] 还有13张票
+     2019-12-09 19:56:12.882163+0800 ios_multi_thread[10926:731995] 还有12张票
+     2019-12-09 19:56:13.881946+0800 ios_multi_thread[10926:731996] 还有11张票
+     2019-12-09 19:56:13.882402+0800 ios_multi_thread[10926:731995] 还有10张票
+     2019-12-09 19:56:14.886758+0800 ios_multi_thread[10926:731995] 还有9张票
+     2019-12-09 19:56:14.887024+0800 ios_multi_thread[10926:731996] 还有8张票
+     2019-12-09 19:56:15.891519+0800 ios_multi_thread[10926:731995] 还有7张票
+     2019-12-09 19:56:15.891824+0800 ios_multi_thread[10926:731996] 还有6张票
+     2019-12-09 19:56:16.892027+0800 ios_multi_thread[10926:731996] 还有5张票
+     2019-12-09 19:56:16.892438+0800 ios_multi_thread[10926:731995] 还有4张票
+     2019-12-09 19:56:17.895495+0800 ios_multi_thread[10926:731996] 还有3张票
+     2019-12-09 19:56:17.895726+0800 ios_multi_thread[10926:731995] 还有2张票
+     2019-12-09 19:56:18.900948+0800 ios_multi_thread[10926:731996] 还有1张票
+     */
+}
+
 
 
 
