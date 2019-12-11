@@ -29,21 +29,20 @@
             @"title":@"GCD",
             @"list":@[
                     @"串行队列-创建串行队列",
-                    @"并行队列-获取系统系统的并行队列",
+                    @"并行队列-获取系统的并行队列",
                     @"并行队列-创建并行队列",
                     @"获取主线程【队列】",
-                    @"同步添加任务到主队列",
+                    @"在主线程同步添加任务到主队列-会造成死锁",
                     @"异步添加任务到主队列",
+                    @"同步队列里面添加同步执行任务会造成死锁",
             ]
-        }
-        ,
+        },
         @{
             @"title":@"NSOperation",
             @"list":@[
                     @"NSOperation",
             ],
         },
-        
         @{
             @"title":@"NSThread",
             @"list":@[
@@ -174,6 +173,27 @@
         NSLog(@"2");
     });
     NSLog(@"3");
+}
+
+
+- (void)test_0_6 {
+    /*
+     Thread 3: EXC_BAD_INSTRUCTION (code=EXC_I386_INVOP, subcode=0x0)
+     */
+
+    dispatch_queue_t queue = dispatch_queue_create("com.demo.serialqueue", DISPATCH_QUEUE_SERIAL);
+    
+    dispatch_async(queue, ^{
+        
+        NSLog(@"1");
+        
+        dispatch_sync(queue, ^{
+            NSLog(@"2");
+        });
+        
+        NSLog(@"3");
+    });
+    
 }
 
 

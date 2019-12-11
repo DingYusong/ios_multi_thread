@@ -14,8 +14,8 @@
             filePath = "ios_multi_thread/ViewController.m"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "367"
-            endingLineNumber = "367"
+            startingLineNumber = "390"
+            endingLineNumber = "390"
             landmarkName = "-test_2_6"
             landmarkType = "7">
          </BreakpointContent>
