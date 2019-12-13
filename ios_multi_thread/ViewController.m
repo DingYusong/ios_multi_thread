@@ -28,13 +28,17 @@
         @{
             @"title":@"GCD",
             @"list":@[
-                    @"串行队列-创建串行队列",
-                    @"并行队列-获取系统的并行队列",
-                    @"并行队列-创建并行队列",
-                    @"获取主线程【队列】",
-                    @"在主线程同步添加任务到主队列-会造成死锁",
-                    @"异步添加任务到主队列",
-                    @"同步队列里面添加同步执行任务会造成死锁",
+                    @"1.串行队列-创建串行队列",
+                    @"2.并行队列-获取系统的并行队列",
+                    @"3.并行队列-创建并行队列",
+                    @"4.获取主线程【队列】",
+                    @"5.在主线程同步添加任务到主队列-会造成死锁",
+                    @"6.异步添加任务到主队列",
+                    @"7.同步队列里面添加同步执行任务会造成死锁",
+                    @"8.同步执行串行队列",
+                    @"9.同步执行并发队列",
+                    @"10.异步执行串行队列",
+                    @"11.异步执行并发队列"
             ]
         },
         @{
@@ -195,6 +199,135 @@
     });
     
 }
+
+/// 同步执行串行队列
+- (void)test_0_7 {
+    dispatch_queue_t queue = dispatch_queue_create("com.demo.myqueue", DISPATCH_QUEUE_SERIAL);
+    
+    NSLog(@"Start");
+    
+    for (NSInteger i = 0; i<10; i++) {
+        dispatch_sync(queue, ^{
+            [NSThread sleepForTimeInterval:1];
+            NSLog(@"%tu",i);
+        });
+    }
+    
+    NSLog(@"End");
+    /*
+     2019-12-13 18:18:19.359274+0800 ios_multi_thread[14121:502143] Start
+     2019-12-13 18:18:20.360612+0800 ios_multi_thread[14121:502143] 0
+     2019-12-13 18:18:21.361990+0800 ios_multi_thread[14121:502143] 1
+     2019-12-13 18:18:22.363110+0800 ios_multi_thread[14121:502143] 2
+     2019-12-13 18:18:23.364299+0800 ios_multi_thread[14121:502143] 3
+     2019-12-13 18:18:24.364771+0800 ios_multi_thread[14121:502143] 4
+     2019-12-13 18:18:25.365055+0800 ios_multi_thread[14121:502143] 5
+     2019-12-13 18:18:26.366307+0800 ios_multi_thread[14121:502143] 6
+     2019-12-13 18:18:27.367616+0800 ios_multi_thread[14121:502143] 7
+     2019-12-13 18:18:28.368980+0800 ios_multi_thread[14121:502143] 8
+     2019-12-13 18:18:29.370336+0800 ios_multi_thread[14121:502143] 9
+     2019-12-13 18:18:29.370518+0800 ios_multi_thread[14121:502143] End
+     */
+}
+
+
+/// 同步执行并发队列
+- (void)test_0_8 {
+    dispatch_queue_t queue = dispatch_queue_create("com.demo.myqueue", DISPATCH_QUEUE_CONCURRENT);
+    
+    NSLog(@"Start");
+    
+    for (NSInteger i = 0; i<10; i++) {
+        dispatch_sync(queue, ^{
+            [NSThread sleepForTimeInterval:1];
+            NSLog(@"%tu",i);
+        });
+    }
+    
+    NSLog(@"End");
+    
+    /*
+     2019-12-13 18:18:19.359274+0800 ios_multi_thread[14121:502143] Start
+     2019-12-13 18:18:20.360612+0800 ios_multi_thread[14121:502143] 0
+     2019-12-13 18:18:21.361990+0800 ios_multi_thread[14121:502143] 1
+     2019-12-13 18:18:22.363110+0800 ios_multi_thread[14121:502143] 2
+     2019-12-13 18:18:23.364299+0800 ios_multi_thread[14121:502143] 3
+     2019-12-13 18:18:24.364771+0800 ios_multi_thread[14121:502143] 4
+     2019-12-13 18:18:25.365055+0800 ios_multi_thread[14121:502143] 5
+     2019-12-13 18:18:26.366307+0800 ios_multi_thread[14121:502143] 6
+     2019-12-13 18:18:27.367616+0800 ios_multi_thread[14121:502143] 7
+     2019-12-13 18:18:28.368980+0800 ios_multi_thread[14121:502143] 8
+     2019-12-13 18:18:29.370336+0800 ios_multi_thread[14121:502143] 9
+     2019-12-13 18:18:29.370518+0800 ios_multi_thread[14121:502143] End
+     */
+}
+
+/// 异步执行串行队列
+- (void)test_0_9 {
+    dispatch_queue_t queue = dispatch_queue_create("com.demo.myqueue", DISPATCH_QUEUE_SERIAL);
+    
+    NSLog(@"Start");
+    
+    for (NSInteger i = 0; i<10; i++) {
+        dispatch_async(queue, ^{
+            [NSThread sleepForTimeInterval:1];
+            NSLog(@"%tu",i);
+        });
+    }
+    
+    NSLog(@"End");
+    
+    /*
+     2019-12-13 18:16:52.485461+0800 ios_multi_thread[14121:502143] Start
+     2019-12-13 18:16:52.485680+0800 ios_multi_thread[14121:502143] End
+     2019-12-13 18:16:53.486886+0800 ios_multi_thread[14121:502317] 0
+     2019-12-13 18:16:54.487519+0800 ios_multi_thread[14121:502317] 1
+     2019-12-13 18:16:55.489131+0800 ios_multi_thread[14121:502317] 2
+     2019-12-13 18:16:56.491174+0800 ios_multi_thread[14121:502317] 3
+     2019-12-13 18:16:57.496256+0800 ios_multi_thread[14121:502317] 4
+     2019-12-13 18:16:58.496718+0800 ios_multi_thread[14121:502317] 5
+     2019-12-13 18:16:59.498078+0800 ios_multi_thread[14121:502317] 6
+     2019-12-13 18:17:00.499086+0800 ios_multi_thread[14121:502317] 7
+     2019-12-13 18:17:01.499483+0800 ios_multi_thread[14121:502317] 8
+     2019-12-13 18:17:02.500397+0800 ios_multi_thread[14121:502317] 9
+     */
+}
+
+
+/// 异步执行并发队列
+- (void)test_0_10 {
+    dispatch_queue_t queue = dispatch_queue_create("com.demo.myqueue", DISPATCH_QUEUE_CONCURRENT);
+    
+    NSLog(@"Start");
+    
+    for (NSInteger i = 0; i<10; i++) {
+        dispatch_async(queue, ^{
+            [NSThread sleepForTimeInterval:1];
+            NSLog(@"%tu",i);
+        });
+    }
+    
+    NSLog(@"End");
+    
+    /*
+     2019-12-13 18:17:09.246562+0800 ios_multi_thread[14121:502143] Start
+     2019-12-13 18:17:09.246893+0800 ios_multi_thread[14121:502143] End
+     2019-12-13 18:17:10.249059+0800 ios_multi_thread[14121:502815] 2
+     2019-12-13 18:17:10.249062+0800 ios_multi_thread[14121:502812] 3
+     2019-12-13 18:17:10.249059+0800 ios_multi_thread[14121:502817] 1
+     2019-12-13 18:17:10.249102+0800 ios_multi_thread[14121:502811] 4
+     2019-12-13 18:17:10.249103+0800 ios_multi_thread[14121:502814] 5
+     2019-12-13 18:17:10.249102+0800 ios_multi_thread[14121:502816] 0
+     2019-12-13 18:17:10.249113+0800 ios_multi_thread[14121:502319] 6
+     2019-12-13 18:17:10.249115+0800 ios_multi_thread[14121:502813] 7
+     2019-12-13 18:17:10.249116+0800 ios_multi_thread[14121:502317] 8
+     2019-12-13 18:17:10.249146+0800 ios_multi_thread[14121:502819] 9
+     */
+}
+
+
+
+
 
 
 - (void)test_2_0 {
