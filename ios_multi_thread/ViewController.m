@@ -38,13 +38,21 @@
                     @"8.同步执行串行队列",
                     @"9.同步执行并发队列",
                     @"10.异步执行串行队列",
-                    @"11.异步执行并发队列"
+                    @"11.异步执行并发队列",
+                    @"12.group-线程同步",
+                    @"13.group-dispatch_group_enter线程同步",
+                    @"14.控制最大并发数",
+                    @"15.dispatch_once"
             ]
         },
         @{
             @"title":@"NSOperation",
             @"list":@[
-                    @"NSOperation",
+                    @"NSBlockOperation",
+                    @"NSInvocationOperation",
+                    @"NSOperationQueue",
+                    @"addDependency-线程同步",
+                    @"addDependency-线程同步2"
             ],
         },
         @{
@@ -325,9 +333,255 @@
      */
 }
 
+/*
+ 调度组
+ */
+- (void)test_0_11 {
+    //调度组
+    dispatch_group_t group = dispatch_group_create();
+    
+    //全局队列
+    dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    
+    
+    dispatch_group_async(group, queue, ^{
+        [NSThread sleepForTimeInterval:3];
+        NSLog(@"任务1");
+    });
+    dispatch_group_async(group, queue, ^{
+        NSLog(@"任务2");
+    });
+    dispatch_group_async(group, queue, ^{
+        [NSThread sleepForTimeInterval:5];
+        NSLog(@"任务3");
+    });
+    
+    dispatch_group_notify(group, queue, ^{
+        NSLog(@"所有的任务都执行完毕");
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSLog(@"更新UI");
+        });
+    });
+    
+}
+
+- (void)test_0_12 {
+    
+    dispatch_group_t group = dispatch_group_create();
+    dispatch_queue_t queue = dispatch_queue_create(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    
+    dispatch_group_enter(group);
+    dispatch_async(queue, ^{
+        [NSThread sleepForTimeInterval:3];
+        NSLog(@"任务1");
+        
+        dispatch_group_leave(group);
+    });
+    
+    dispatch_group_enter(group);
+    dispatch_async(queue, ^{
+        NSLog(@"任务2");
+        
+        dispatch_group_leave(group);
+    });
+    
+    
+    dispatch_group_enter(group);
+    dispatch_async(queue, ^{
+        [NSThread sleepForTimeInterval:5];
+        NSLog(@"任务3");
+
+        dispatch_group_leave(group);
+    });
+    
+    dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
+    dispatch_async(queue, ^{
+        NSLog(@"所有的任务都执行完毕");
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSLog(@"更新UI");
+        });
+    });
+}
 
 
+/// 控制最大并发数
+- (void)test_0_13 {
+    
+    NSLog(@"000");
+    
+    dispatch_group_t group = dispatch_group_create();
+    dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    dispatch_semaphore_t semaphore = dispatch_semaphore_create(10);
+    
+    for (NSInteger i = 0; i < 100; i++) {
+        dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+        dispatch_group_async(group, queue, ^{
+            sleep(2);
+            NSLog(@"%tu :%@",i,[NSThread currentThread]);
+            dispatch_semaphore_signal(semaphore);
+        });
+    }
+    dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
+    NSLog(@"101");
+}
 
+- (void)test_0_14 {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        NSLog(@"只执行1次");
+    });
+    
+    NSLog(@"11");
+    
+    /*
+     同步：阻塞主线程
+     
+     2019-12-16 17:27:12.503707+0800 ios_multi_thread[74576:3092042] 只执行1次
+     2019-12-16 17:27:12.503919+0800 ios_multi_thread[74576:3092042] 11
+     */
+}
+
+- (void)test_1_0 {
+    NSLog(@"1%@",[NSThread currentThread]);
+    NSBlockOperation *operate = [NSBlockOperation blockOperationWithBlock:^{
+        NSLog(@"2%@",[NSThread currentThread]);
+    }];
+    NSLog(@"3%@",[NSThread currentThread]);
+
+    NSOperationQueue *queue = [NSOperationQueue new];
+    [queue addOperation:operate];
+    /*
+     2019-12-16 16:08:42.409794+0800 ios_multi_thread[73177:2956105] 1<NSThread: 0x6000022ca140>{number = 1, name = main}
+     2019-12-16 16:08:42.410550+0800 ios_multi_thread[73177:2956105] 3<NSThread: 0x6000022ca140>{number = 1, name = main}
+     2019-12-16 16:08:42.411184+0800 ios_multi_thread[73177:2956197] 2<NSThread: 0x6000022beac0>{number = 6, name = (null)}
+     */
+}
+
+- (void)test_1_1 {
+    NSLog(@"1%@",[NSThread currentThread]);
+    NSInvocationOperation *operate = [[NSInvocationOperation alloc] initWithTarget:self selector:@selector(test_1_1_selector) object:nil];
+    NSLog(@"3%@",[NSThread currentThread]);
+
+    NSOperationQueue *queue = [NSOperationQueue new];
+    [queue addOperation:operate];
+    /*
+     2019-12-16 16:08:51.349342+0800 ios_multi_thread[73177:2956105] 1<NSThread: 0x6000022ca140>{number = 1, name = main}
+     2019-12-16 16:08:51.349845+0800 ios_multi_thread[73177:2956105] 3<NSThread: 0x6000022ca140>{number = 1, name = main}
+     2019-12-16 16:08:51.351332+0800 ios_multi_thread[73177:2956202] 2<NSThread: 0x6000022be600>{number = 7, name = (null)}
+     */
+}
+
+- (void)test_1_1_selector {
+    NSLog(@"2%@",[NSThread currentThread]);
+}
+
+- (void)test_1_2 {
+    NSOperationQueue *queue = [NSOperationQueue new];
+    [queue addOperationWithBlock:^{
+        NSLog(@"执行子任务%@",[NSThread currentThread]);
+        
+        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+            NSLog(@"更新主线程UI%@",[NSThread currentThread]);
+        }];
+    }];
+}
+
+
+/// 线程同步
+- (void)test_1_3 {
+    NSLog(@"任务0%@",[NSThread currentThread]);
+    
+    NSBlockOperation *op1 = [NSBlockOperation blockOperationWithBlock:^{
+        [NSThread sleepForTimeInterval:3];
+        NSLog(@"任务1%@",[NSThread currentThread]);
+    }];
+    
+    NSBlockOperation *op2 = [NSBlockOperation blockOperationWithBlock:^{
+        [NSThread sleepForTimeInterval:1];
+        NSLog(@"任务2%@",[NSThread currentThread]);
+    }];
+    
+    NSBlockOperation *op3 = [NSBlockOperation blockOperationWithBlock:^{
+        [NSThread sleepForTimeInterval:5];
+        NSLog(@"任务3%@",[NSThread currentThread]);
+    }];
+    
+    NSBlockOperation *op4 = [NSBlockOperation blockOperationWithBlock:^{
+        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+            NSLog(@"更新主线程UI%@",[NSThread currentThread]);
+        }];
+    }];
+    
+    [op4 addDependency:op1];
+    [op4 addDependency:op2];
+    [op4 addDependency:op3];
+    
+    NSOperationQueue *queue = [NSOperationQueue new];
+//    [queue addOperation:op1];
+//    [queue addOperation:op2];
+//    [queue addOperation:op3];
+    
+    [queue addOperations:@[op1,op2,op3,op4] waitUntilFinished:YES];
+    
+    NSLog(@"任务4%@",[NSThread currentThread]);
+    
+    /*
+     卡主主线程了
+     
+     2019-12-16 16:30:15.184038+0800 ios_multi_thread[73595:2995480] 任务0<NSThread: 0x600003f94440>{number = 1, name = main}
+     2019-12-16 16:30:16.186859+0800 ios_multi_thread[73595:2995674] 任务2<NSThread: 0x600003ffd600>{number = 7, name = (null)}
+     2019-12-16 16:30:18.189711+0800 ios_multi_thread[73595:2995619] 任务1<NSThread: 0x600003fa21c0>{number = 6, name = (null)}
+     2019-12-16 16:30:20.189257+0800 ios_multi_thread[73595:2996322] 任务3<NSThread: 0x600003ffd480>{number = 8, name = (null)}
+     2019-12-16 16:30:20.189590+0800 ios_multi_thread[73595:2995480] 任务4<NSThread: 0x600003f94440>{number = 1, name = main}
+     2019-12-16 16:30:20.191507+0800 ios_multi_thread[73595:2995480] 更新主线程UI<NSThread: 0x600003f94440>{number = 1, name = main}
+*/
+}
+- (void)test_1_4 {
+    
+    NSLog(@"任务0%@",[NSThread currentThread]);
+
+    NSOperationQueue *queue = [NSOperationQueue new];
+    [queue addOperationWithBlock:^{
+        
+        NSBlockOperation *op1 = [NSBlockOperation blockOperationWithBlock:^{
+            [NSThread sleepForTimeInterval:3];
+            NSLog(@"任务1%@",[NSThread currentThread]);
+        }];
+        
+        NSBlockOperation *op2 = [NSBlockOperation blockOperationWithBlock:^{
+            [NSThread sleepForTimeInterval:1];
+            NSLog(@"任务2%@",[NSThread currentThread]);
+        }];
+        
+        NSBlockOperation *op3 = [NSBlockOperation blockOperationWithBlock:^{
+            [NSThread sleepForTimeInterval:5];
+            NSLog(@"任务3%@",[NSThread currentThread]);
+        }];
+        
+        NSOperationQueue *queue2 = [NSOperationQueue new];
+        queue.maxConcurrentOperationCount = 5;
+        
+        [queue2 addOperations:@[op1,op2,op3] waitUntilFinished:YES];
+        
+        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+            NSLog(@"更新主线程UI%@",[NSThread currentThread]);
+        }];
+    }];
+    
+    NSLog(@"任务4%@",[NSThread currentThread]);
+
+    /*
+     不会卡主线程
+     
+     2019-12-16 16:29:47.537824+0800 ios_multi_thread[73595:2995480] 任务0<NSThread: 0x600003f94440>{number = 1, name = main}
+     2019-12-16 16:29:47.538394+0800 ios_multi_thread[73595:2995480] 任务4<NSThread: 0x600003f94440>{number = 1, name = main}
+     2019-12-16 16:29:48.540179+0800 ios_multi_thread[73595:2995622] 任务2<NSThread: 0x600003fde380>{number = 5, name = (null)}
+     2019-12-16 16:29:50.541964+0800 ios_multi_thread[73595:2995619] 任务1<NSThread: 0x600003fa21c0>{number = 6, name = (null)}
+     2019-12-16 16:29:52.542651+0800 ios_multi_thread[73595:2995627] 任务3<NSThread: 0x600003fd3d80>{number = 3, name = (null)}
+     2019-12-16 16:29:52.542940+0800 ios_multi_thread[73595:2995480] 更新主线程UI<NSThread: 0x600003f94440>{number = 1, name = main}
+
+     */
+}
 
 
 - (void)test_2_0 {
